@@ -3,6 +3,7 @@
 #include <asm-generic/socket.h>
 #include <mutex>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <sys/socket.h>
 
 void server_pool_t::add(const server_ip_t &addr) {
@@ -66,4 +67,21 @@ void server_t::accept() {
     std::fprintf(stderr, "cannot accept connection\n");
     std::exit(1);
   }
+}
+
+std::string server_t::rec(int sock) {
+  std::string result;
+  char buff[4096];
+  int size;
+
+  do {
+    size = recv(sock, buff, 4096, 0);
+    if (size < 0) {
+      std::fprintf(stderr, "cannot receive from client.");
+      std::exit(1);
+    }
+    result += buff;
+  } while (size - 4096 > 0);
+
+  return result;
 }

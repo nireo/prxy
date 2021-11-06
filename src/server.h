@@ -18,7 +18,7 @@ struct server_t {
   void create_socket(int);
   void send(const std::string &, int);
   void accept();
-  const std::string &rec(int);
+  std::string rec(int);
 
   int s_socket_;
   int c_socket_;

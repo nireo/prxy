@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log"
 	"net"
 	"net/http"
@@ -62,6 +63,19 @@ func (p *Pool) NextServer() *Server {
 }
 
 func Balance(w http.ResponseWriter, r *http.Request) {
+	var ok bool
+	var attemptCount int
+	if attemptCount, ok = r.Context().Value(0).(int); ok {
+		http.Error(w, "cannot get attempts for request context\n", http.StatusInternalServerError)
+		return
+	}
+
+	if attemptCount > 3 {
+		log.Printf("%s(%s) Max attempts reached, terminating\n", r.RemoteAddr, r.URL.Path)
+		http.Error(w, "service not available", http.StatusServiceUnavailable)
+		return
+	}
+
 	serv := pool.NextServer()
 	if serv != nil {
 		serv.RP.ServeHTTP(w, r)
@@ -103,4 +117,36 @@ func backgroundHealthCheck() {
 			log.Printf("health check if done...\n")
 		}
 	}
+}
+
+func AddServer(str string) error {
+	serverUrl, err := url.Parse(str)
+	if err != nil {
+		return err
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(serverUrl)
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("[%s] %s\n", serverUrl.Host, err.Error())
+
+		var ok bool
+		var attemptCount int
+		if attemptCount, ok = r.Context().Value(0).(int); ok {
+			http.Error(w, "cannot get attempts for request context\n", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("%s(%s) Attempting retry %d\n", r.RemoteAddr, r.URL.Path, attemptCount)
+		ctx := context.WithValue(r.Context(), 0, attemptCount+1)
+		Balance(w, r.WithContext(ctx))
+	}
+
+	pool.servers = append(pool.servers, &Server{
+		URL:   serverUrl,
+		Alive: true,
+		RP:    proxy,
+	})
+	log.Printf("configured server: %s\n", serverUrl)
+
+	return nil
 }

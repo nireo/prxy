@@ -6,16 +6,24 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/nireo/prxy/config"
 	"github.com/nireo/prxy/server"
 )
 
 func main() {
-	port := flag.Int("port", 8080, "the port where the load balancer should be hosted on")
+	conf, err := config.ConfigFromFile("./config.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	log.Printf("starting the service on port: %d\n", *port)
+	log.Printf("starting the service on port: %d\n", conf.Port)
+
+	for _, srv := range conf.URLs {
+		server.AddServer(srv.URL)
+	}
 
 	srv := http.Server{
-		Addr:    fmt.Sprintf(":%d", *port),
+		Addr:    fmt.Sprintf(":%d", conf.Port),
 		Handler: http.HandlerFunc(server.Balance),
 	}
 

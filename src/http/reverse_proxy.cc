@@ -1,4 +1,7 @@
 #include "reverse_proxy.h"
+#include <drogon/drogon_callbacks.h>
+#include <functional>
+#include <trantor/net/EventLoop.h>
 
 using namespace drogon;
 using namespace reverse_proxy;
@@ -31,7 +34,6 @@ void ReverseProxy::initAndStart(const Json::Value &conf) {
       [this](std::vector<HttpClientPtr> &clients, size_t io_loop_index) {
         clients.resize(addrs_.size() * conn_factor_);
       });
-
   client_index_.init(
       [this](size_t &index, size_t ioLoopIndex) { index = ioLoopIndex; });
   drogon::app().registerPreRoutingAdvice([this](const HttpRequestPtr &req,
@@ -39,4 +41,42 @@ void ReverseProxy::initAndStart(const Json::Value &conf) {
                                                 AdviceChainCallback &&pass) {
     pre_routing(req, std::move(callback), std::move(pass));
   });
+}
+
+void ReverseProxy::pre_routing(const HttpRequestPtr &req,
+                               AdviceCallback &&callback,
+                               AdviceChainCallback &&) {
+  size_t index;
+  auto &clients_vector = *clients_;
+
+  if (same_client_backend_) {
+    index = std::hash<uint32_t>{}(req->getPeerAddr().ipNetEndian()) %
+            clients_vector.size();
+    index =
+        (index + (++(*client_index_)) * addrs_.size()) % clients_vector.size();
+  } else {
+    index = ++(*client_index_) % clients_vector.size();
+  }
+
+  auto &client_ptr = clients_vector[index];
+  if (!client_ptr) {
+    auto &addr = addrs_[index % addrs_.size()];
+    client_ptr = HttpClient::newHttpClient(
+        addr, trantor::EventLoop::getEventLoopOfCurrentThread());
+    client_ptr->setPipeliningDepth(pipeline_depth_);
+  }
+
+  req->setPassThrough(true);
+  client_ptr->sendRequest(
+      req, [callback = std::move(callback)](ReqResult result,
+                                            const HttpResponsePtr &resp) {
+        if (result == ReqResult::Ok) {
+          resp->setPassThrough(true);
+          callback(resp);
+        } else {
+          auto errResp = HttpResponse::newHttpResponse();
+          errResp->setStatusCode(k500InternalServerError);
+          callback(errResp);
+        }
+      });
 }

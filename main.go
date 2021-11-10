@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,6 +25,7 @@ func main() {
 		Addr:    fmt.Sprintf(":%d", conf.Port),
 		Handler: http.HandlerFunc(server.Balance),
 	}
+	server.SetupServerHealthchecks()
 
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)

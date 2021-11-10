@@ -119,6 +119,10 @@ func backgroundHealthCheck() {
 	}
 }
 
+func SetupServerHealthchecks() {
+	go backgroundHealthCheck()
+}
+
 func AddServer(str string) error {
 	serverUrl, err := url.Parse(str)
 	if err != nil {

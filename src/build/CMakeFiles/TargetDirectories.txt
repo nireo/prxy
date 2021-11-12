@@ -1,0 +1,3 @@
+/home/eemil/go/src/github.com/nireo/prxy/src/build/CMakeFiles/rebuild_cache.dir
+/home/eemil/go/src/github.com/nireo/prxy/src/build/CMakeFiles/edit_cache.dir
+/home/eemil/go/src/github.com/nireo/prxy/src/build/CMakeFiles/prxy.dir

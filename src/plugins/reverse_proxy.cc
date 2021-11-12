@@ -1,4 +1,5 @@
 #include "reverse_proxy.h"
+#include "../healthcheck.h"
 #include <drogon/drogon_callbacks.h>
 #include <functional>
 #include <trantor/net/EventLoop.h>
@@ -7,6 +8,7 @@ using namespace drogon;
 using namespace reverse_proxy;
 
 void ReverseProxy::initAndStart(const Json::Value &conf) {
+  std::vector<std::string> healthcheck_addrs;
   if (conf.isMember("backends") && conf["backends"].isArray()) {
     for (const auto &backend : conf["backends"]) {
       addrs_.emplace_back(backend.asString());
@@ -20,6 +22,8 @@ void ReverseProxy::initAndStart(const Json::Value &conf) {
     std::fprintf(stderr, "backends not defined in configuration.\n");
     std::exit(1);
   }
+  auto hc = std::make_unique<healthcheck::Healthchecker>(healthcheck_addrs);
+  healthcheck::startup_server_health_check(std::move(hc));
 
   pipeline_depth_ = conf.get("pipelining", 0).asInt();
   same_client_backend_ =

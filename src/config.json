@@ -1,12 +1,4 @@
-/* This is a JSON format configuration file
- */
 {
-    /*
-    //ssl: The global ssl files setting
-    "ssl": {
-        "cert": "../../trantor/trantor/tests/server.pem",
-        "key": "../../trantor/trantor/tests/server.pem"
-    },*/
     "listeners": [{
         //address: Ip address,0.0.0.0 by default
         "address": "0.0.0.0",
@@ -137,7 +129,7 @@
     //plugins: Define all plugins running in the application
     "plugins": [{
         //name: The class name of the plugin
-        "name": "my_plugin::SimpleReverseProxy",
+        "name": "reverseproxy::ReverseProxy",
         //dependencies: Plugins that the plugin depends on. It can be commented out
         "dependencies": [],
         //config: The configuration of the plugin. This json object is the parameter to initialize the plugin.
